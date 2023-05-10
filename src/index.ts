@@ -12,22 +12,18 @@ export default function <M extends Model>(
   const attributes: FindAttributeOptions = []
 
   if (Array.isArray(query.fields) && query.fields.filter((item) => item).length) {
-    const excludedFields = query.fields.filter((item) => {
-      return item.startsWith('-')
-    })
+    query.fields = [...new Set(query.fields)]
 
-    if (query.fields.length === excludedFields.length) {
+    if (query.fields.every((item) => item.startsWith('-'))) {
       for (const attribute of attributeList) {
-        if (!excludedFields.find((excludeField) => excludeField.includes(attribute))) {
+        if (!query.fields.includes('-' + attribute)) {
           attributes.push(attribute)
         }
       }
     } else {
-      const setQueryFields = new Set(query.fields)
-
-      for (const attribute of attributeList) {
-        if (setQueryFields.has(attribute)) {
-          attributes.push(attribute)
+      for (const field of query.fields) {
+        if (attributeList.includes(field)) {
+          attributes.push(field)
         }
       }
     }
@@ -42,6 +38,8 @@ export default function <M extends Model>(
     Array.isArray(query.additionalFields) &&
     query.additionalFields.filter((item) => item).length
   ) {
+    query.additionalFields = [...new Set(query.additionalFields)]
+
     for (const queryAdditionalField of query.additionalFields) {
       if (additionalFields.hasOwnProperty(queryAdditionalField)) {
         attributes.push([additionalFields[queryAdditionalField], queryAdditionalField])
