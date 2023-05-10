@@ -11,9 +11,9 @@ export default function <M extends Model>(
 
   const attributes: FindAttributeOptions = []
 
-  if (Array.isArray(query.fields)) {
+  if (Array.isArray(query.fields) && query.fields.filter((item) => item).length) {
     const excludedFields = query.fields.filter((item) => {
-      return item.includes('-')
+      return item.startsWith('-')
     })
 
     if (query.fields.length === excludedFields.length) {
@@ -37,7 +37,11 @@ export default function <M extends Model>(
     }
   }
 
-  if (additionalFields && Array.isArray(query.additionalFields)) {
+  if (
+    additionalFields &&
+    Array.isArray(query.additionalFields) &&
+    query.additionalFields.filter((item) => item).length
+  ) {
     for (const queryAdditionalField of query.additionalFields) {
       if (additionalFields.hasOwnProperty(queryAdditionalField)) {
         attributes.push([additionalFields[queryAdditionalField], queryAdditionalField])
@@ -45,5 +49,5 @@ export default function <M extends Model>(
     }
   }
 
-  return attributes.length ? attributes : attributeList
+  return attributes
 }
