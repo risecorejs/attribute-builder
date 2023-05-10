@@ -31,6 +31,10 @@ export default function <M extends Model>(
         }
       }
     }
+  } else {
+    for (const attribute of attributeList) {
+      attributes.push(attribute)
+    }
   }
 
   if (additionalFields && Array.isArray(query.additionalFields)) {
