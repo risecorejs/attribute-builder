@@ -4,18 +4,7 @@
 
 Пакет `@risecorejs/attribute-builder` предоставляет утилитарную функцию для создания списка атрибутов модели Sequelize на основе запроса. Она позволяет легко выбирать и исключать определенные поля при выполнении запросов к базе данных.
 
-Главная функция из пакета, принимает три аргумента: модель Sequelize (наследник `Model`), объект запроса `query` и дополнительные поля `additionalFields`. Функция возвращает массив имен атрибутов или алиасов проекций, которые будут использоваться в запросе.
-
-### Как это работает?
-
-1. Функция начинается с получения списка имен атрибутов модели.
-2. Затем она проверяет массив `query.fields`, если он передан, и на его основе формирует список атрибутов для выборки.
-   - Если в массиве присутствуют атрибуты с префиксом `-`, то они будут исключены из выборки.
-   - Если же префикса нет, то в выборку включаются только те атрибуты, которые указаны в массиве.
-   - Если `query.fields` не передан, то в выборку будут включены все атрибуты модели. 
-3. Далее функция проверяет наличие дополнительных полей `additionalFields` и массива `query.additionalFields`.
-   - Если оба аргумента переданы, то для каждого поля из `query.additionalFields` добавляется соответствующий атрибут в список выборки. Значения атрибутов берутся из объекта `additionalFields`, ключи которого совпадают с именами атрибутов.
-4. Наконец, функция возвращает список выбранных атрибутов. Если список пустой, то возвращается список всех атрибутов модели.
+Главная функция из пакета, принимает три аргумента: модель Sequelize (наследник `Model`), объект запроса `query` и дополнительные опции `options`. Функция возвращает массив имен атрибутов или алиасов проекций, которые будут использоваться в запросе.
 
 ## Установка
 
@@ -27,44 +16,31 @@ npm install @risecorejs/attribute-builder
 
 ## Использование
 
-### Импорт пакета
-
 Для использования пакета импортируйте его в свой проект:
 
 ```typescript
 import attributeBuilder from '@risecorejs/attribute-builder'
 ```
 
-### Сигнатура функции
+## Параметры
 
-Главная функция имеет следующую сигнатуру:
-
-```typescript
-attributeBuilder<M extends Model>(
-  model: typeof Model & { new (): M },
-  query: IQuery = {},
-  additionalFields?: Record<string, any>
-): Array<string | ProjectionAlias>
-```
-
-### Параметры
-
-- `model`: Модель Sequelize, для которой выполняется запрос. Модель Sequelize (наследник `Model`).
+- `model`: Модель Sequelize (наследник `Model`), для которой выполняется запрос.
 - `query` (необязательный): Объект, представляющий параметры запроса.
   - `fields` (необязательный): Массив полей, которые следует включить в результат запроса.
   - `additionalFields` (необязательный): Массив дополнительных полей, которые следует включить в результат запроса.
-- `additionalFields` (необязательный): Объект, содержащий дополнительные поля и их значения.
+- `options` (необязательный): Объект, содержащий дополнительные опции.
+  - `setPrefixQueryKeys` (необязательный): Устанавливает префикс для `query.fields` и `query.additionalFields`. Например: `options.setPrefixQueryKeys = 'region'` в таком случае функция будет искать `query.regionFields` и `query.additionalFields`.
+  - `additionalAttributes` (необязательный): Объект, содержащий дополнительные атрибуты.
+  - `excludeAttributes` (необязательный): Массив атрибутов модели которые нужно исключить.
 
-### Возвращаемое значение
+## Возвращаемое значение
 
 Главная функция возвращает массив полей или псевдонимов проекций, основываясь на переданном запросе и модели. Если в запросе не указаны поля или псевдонимы, функция возвращает все атрибуты модели.
 
-### Пример использования
-
-#### Базовый пример
+## Базовый пример использования
 
 ```typescript
-// database/additional-fields/user.ts
+// database/additional-attributes/user.ts
 
 import sequelize from 'sequelize'
 
@@ -83,7 +59,7 @@ import attributeBuilder from '@risecorejs/attribute-builder'
 
 import express from 'express'
 
-import getUserAdditionalFields from '~/database/additional-fields/user.ts'
+import getUserAdditionalAttributes from '~/database/additional-attributes/user.ts'
 
 /**
  * INDEX
@@ -92,40 +68,65 @@ import getUserAdditionalFields from '~/database/additional-fields/user.ts'
  * @param res {express.Response}
  */
 export async function index(req: express.Request, res: express.Response) {
-  // Вариант 1
-  
+  /**
+   * Все атрибуты модели models.User:
+   * ['id', 'name', 'email', 'password', 'createdAt', 'updatedAt', 'deletedAt']
+   */
+```
+
+### Вариант 1
+
+```typescript
   /**
    * Пример объекта запроса `req.query`
    * req.query = {
    *    fields: ['id', 'name', 'email'],
    *    additionalFields: ['subordinateCount'],
-   *  }
+   * }
    */
 
   const users = await models.User.findAll({
-    attributes: attributeBuilder(models.User, req.query, getUserAdditionalFields()) // ['id', 'name', 'email', ['subordinateCount', sequelize.literal('(SELECT COUNT(*) FROM "user" AS "Subordinates"...]]
+    attributes: attributeBuilder(models.User, req.query, {
+      excludeAttributes: ['password'],
+      additionalAttributes: getUserAdditionalAttributes()
+    })
   })
-  
-  // ...
-  
-  // Вариант 2
 
+  /**
+   * Результирущий набор атрибутов для models.User:
+   * ['id', 'name', 'email', ['subordinateCount', sequelize.literal('(SELECT COUNT(*) FROM "user" AS "Subordinates"...]]
+   */
+
+  // ...
+```
+
+### Вариант 2
+
+```typescript
   /**
    * Пример объекта запроса `req.query`
    * req.query = {
-   *    fields: ['-createdAt', '-updatedAt', '-deletedAt']
+   *    fields: ['-updatedAt', '-deletedAt']
    *  }
    */
 
   const users = await models.User.findAll({
-    attributes: attributeBuilder(models.User, req.query, getUserAdditionalFields()) // ['id', 'name', 'email']
+    attributes: attributeBuilder(models.User, req.query, {
+      excludeAttributes: ['password'],
+      additionalAttributes: getUserAdditionalAttributes()
+    })
+
+    /**
+     * Результирущий набор атрибутов для models.User:
+     * ['id', 'name', 'email', 'createdAt']
+     */
   })
 
   // ...
 }
 ```
 
-### Пример с использованием метода req.attributeBuilder
+## Пример с использованием метода `req.attributeBuilder()`
 
 ```typescript
 // controllers/users.ts
@@ -134,7 +135,7 @@ import models from '@riscorejs/core/models'
 
 import express from 'express'
 
-import getUserAdditionalFields from '~/database/additional-fields/user.ts'
+import getUserAdditionalAttributes from '~/database/additional-attributes/user.ts'
 
 /**
  * INDEX
@@ -152,9 +153,17 @@ export async function index(req: express.Request, res: express.Response) {
    */
 
   const users = await models.User.findAll({
-    attributes: req.attributeBuilder(models.User, getUserAdditionalFields()) // ['id', 'name', 'email', ['subordinateCount', sequelize.literal('(SELECT COUNT(*) FROM "user" AS "Subordinates"...]]
+    attributes: req.attributeBuilder(models.User, {
+      excludeAttributes: ['password'],
+      additionalAttributes: getUserAdditionalAttributes()
+    })
+
+    /**
+     * Результирущий набор атрибутов для models.User:
+     * ['id', 'name', 'email', ['subordinateCount', sequelize.literal('(SELECT COUNT(*) FROM "user" AS "Subordinates"...]]
+     */
   })
-  
+
   // ...
 }
 ```
