@@ -25,13 +25,13 @@ import attributeBuilder from '@risecorejs/attribute-builder'
 ## Параметры
 
 - `model`: Модель Sequelize (наследник `Model`), для которой выполняется запрос.
-- `query` (необязательный): Объект, представляющий параметры запроса.
-  - `fields` (необязательный): Массив полей, которые следует включить в результат запроса.
-  - `additionalFields` (необязательный): Массив дополнительных полей, которые следует включить в результат запроса.
-- `options` (необязательный): Объект, содержащий дополнительные опции.
-  - `setPrefixQueryKeys` (необязательный): Устанавливает префикс для `query.fields` и `query.additionalFields`. Например: `options.setPrefixQueryKeys = 'region'` в таком случае функция будет искать `query.regionFields` и `query.additionalFields`.
-  - `additionalAttributes` (необязательный): Объект, содержащий дополнительные атрибуты.
-  - `excludeAttributes` (необязательный): Массив атрибутов модели которые нужно исключить.
+- `query` (необязательный): Объект (`object`), представляющий параметры запроса.
+  - `fields` (необязательный): Массив полей (`Array<string>`), которые следует включить или исключить используя знак `-` из результата запроса.
+  - `additionalFields` (необязательный): Массив дополнительных полей (`Array<string>`), которые следует включить в результат запроса.
+- `options` (необязательный): Объект (`object`), содержащий дополнительные опции.
+  - `setPrefixQueryKeys` (необязательный): Устанавливает префикс (`string`) для `query.fields` и `query.additionalFields`. Например: `options.setPrefixQueryKeys = 'region'` в таком случае, функция будет искать `query.regionFields` и `query.regionAdditionalFields`.
+  - `additionalAttributes` (необязательный): Объект (`object`), содержащий дополнительные атрибуты.
+  - `excludeAttributes` (необязательный): Массив атрибутов (`Array<string>`) модели которые нужно исключить.
 
 ## Возвращаемое значение
 
