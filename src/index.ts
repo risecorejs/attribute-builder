@@ -24,12 +24,18 @@ export default function <M extends sequelize.Model>(
 
   const attributes: sequelize.FindAttributeOptions = []
 
-  if (Array.isArray(query.fields) && (query.fields = query.fields.filter((item) => item)).length) {
-    query.fields = [...new Set(query.fields.map((item) => item.trim()))]
+  let queryFields: undefined | Array<string> =
+    query[options.prefixQueryKeys ? options.prefixQueryKeys + 'Fields' : 'fields']
+
+  let queryAdditionalFields: undefined | Array<string> =
+    query[options.prefixQueryKeys ? options.prefixQueryKeys + 'AdditionalFields' : 'additionalFields']
+
+  if (Array.isArray(queryFields) && (queryFields = queryFields.filter((item) => item)).length) {
+    queryFields = [...new Set(queryFields.map((item) => item.trim()))]
 
     const invalidFields: Array<string> = []
 
-    for (const field of query.fields) {
+    for (const field of queryFields) {
       if (!attributeList.includes(field.startsWith('-') ? field.slice(1) : field)) {
         invalidFields.push(field)
       }
@@ -43,16 +49,16 @@ export default function <M extends sequelize.Model>(
       })
     }
 
-    if (query.fields.every((item) => item.startsWith('-'))) {
+    if (queryFields.every((item) => item.startsWith('-'))) {
       for (const attribute of attributeList) {
-        if (query.fields.includes('-' + attribute)) {
+        if (queryFields.includes('-' + attribute)) {
           continue
         }
 
         attributes.push(attribute)
       }
     } else {
-      for (const field of query.fields) {
+      for (const field of queryFields) {
         if (attributeList.includes(field)) {
           attributes.push(field)
         }
@@ -66,14 +72,14 @@ export default function <M extends sequelize.Model>(
 
   if (
     options.additionalAttributes &&
-    Array.isArray(query.additionalFields) &&
-    (query.additionalFields = query.additionalFields.filter((item) => item)).length
+    Array.isArray(queryAdditionalFields) &&
+    (queryAdditionalFields = queryAdditionalFields.filter((item) => item)).length
   ) {
-    query.additionalFields = [...new Set(query.additionalFields.map((item) => item.trim()))]
+    queryAdditionalFields = [...new Set(queryAdditionalFields.map((item) => item.trim()))]
 
     const invalidAdditionalFields: Array<string> = []
 
-    for (const additionalField of query.additionalFields) {
+    for (const additionalField of queryAdditionalFields) {
       if (!options.additionalAttributes.hasOwnProperty(additionalField)) {
         invalidAdditionalFields.push(additionalField)
       }
@@ -90,7 +96,7 @@ export default function <M extends sequelize.Model>(
       )
     }
 
-    for (const additionalField of query.additionalFields) {
+    for (const additionalField of queryAdditionalFields) {
       if (options.additionalAttributes.hasOwnProperty(additionalField)) {
         attributes.push([options.additionalAttributes[additionalField], additionalField])
       }

@@ -26,10 +26,10 @@ import attributeBuilder from '@risecorejs/attribute-builder'
 
 - `model`: Модель Sequelize (наследник `Model`), для которой выполняется запрос.
 - `query` (необязательный): Объект (`object`), представляющий параметры запроса.
-  - `fields` (необязательный): Массив полей (`Array<string>`), которые следует включить или исключить используя знак `-` из результата запроса.
+  - `fields` (необязательный): Массив полей (`Array<string>`), которые следует включить или исключить используя знак `-` из результата.
   - `additionalFields` (необязательный): Массив дополнительных полей (`Array<string>`), которые следует включить в результат запроса.
 - `options` (необязательный): Объект (`object`), содержащий дополнительные опции.
-  - `setPrefixQueryKeys` (необязательный): Устанавливает префикс (`string`) для `query.fields` и `query.additionalFields`. Например: `options.setPrefixQueryKeys = 'region'` в таком случае, функция будет искать `query.regionFields` и `query.regionAdditionalFields`.
+  - `prefixQueryKeys` (необязательный): Префикс ключей запроса (`string`), меняет поведения поиска ключей `query.fields` и `query.additionalFields`. Например: `options.prefixQueryKeys = 'region'` в таком случае, функция будет искать `query.regionFields` и `query.regionAdditionalFields`.
   - `additionalAttributes` (необязательный): Объект (`object`), содержащий дополнительные атрибуты.
   - `excludeAttributes` (необязательный): Массив атрибутов (`Array<string>`) модели которые нужно исключить.
 
@@ -37,7 +37,7 @@ import attributeBuilder from '@risecorejs/attribute-builder'
 
 Главная функция возвращает массив полей или псевдонимов проекций, основываясь на переданном запросе и модели. Если в запросе не указаны поля или псевдонимы, функция возвращает все атрибуты модели.
 
-## Базовый пример использования
+## Примеры использования
 
 ```typescript
 // database/additional-attributes/user.ts
@@ -59,7 +59,7 @@ import attributeBuilder from '@risecorejs/attribute-builder'
 
 import express from 'express'
 
-import getUserAdditionalAttributes from '~/database/additional-attributes/user.ts'
+import getUserAdditionalAttributes from '~/database/additional-attributes/user'
 
 /**
  * INDEX
@@ -68,10 +68,6 @@ import getUserAdditionalAttributes from '~/database/additional-attributes/user.t
  * @param res {express.Response}
  */
 export async function index(req: express.Request, res: express.Response) {
-  /**
-   * Все атрибуты модели models.User:
-   * ['id', 'name', 'email', 'password', 'createdAt', 'updatedAt', 'deletedAt']
-   */
 ```
 
 ### Вариант 1
@@ -81,10 +77,14 @@ export async function index(req: express.Request, res: express.Response) {
    * Пример объекта запроса `req.query`
    * req.query = {
    *    fields: ['id', 'name', 'email'],
-   *    additionalFields: ['subordinateCount'],
+   *    additionalFields: ['subordinateCount']
    * }
    */
 
+  /**
+   * Все атрибуты модели `User`:
+   * ['id', 'name', 'email', 'password', 'createdAt', 'updatedAt', 'deletedAt']
+   */
   const users = await models.User.findAll({
     attributes: attributeBuilder(models.User, req.query, {
       excludeAttributes: ['password'],
@@ -93,8 +93,8 @@ export async function index(req: express.Request, res: express.Response) {
   })
 
   /**
-   * Результирущий набор атрибутов для models.User:
-   * ['id', 'name', 'email', ['subordinateCount', sequelize.literal('(SELECT COUNT(*) FROM "user" AS "Subordinates"...]]
+   * Результирущий набор атрибутов модели `User`:
+   * ['id', 'name', 'email', [sequelize.literal('(SELECT COUNT(*) FROM "user" AS "Subordinates"..., 'subordinateCount']]
    */
 
   // ...
@@ -106,27 +106,72 @@ export async function index(req: express.Request, res: express.Response) {
   /**
    * Пример объекта запроса `req.query`
    * req.query = {
-   *    fields: ['-updatedAt', '-deletedAt']
+   *    fields: ['-updatedAt', '-deletedAt'],
+   *    cityFields: ['id', 'name']
    *  }
    */
 
+  /**
+   * Все атрибуты модели `User`:
+   * ['id', 'name', 'email', 'password', 'createdAt', 'updatedAt', 'deletedAt']
+   */
   const users = await models.User.findAll({
     attributes: attributeBuilder(models.User, req.query, {
       excludeAttributes: ['password'],
-      additionalAttributes: getUserAdditionalAttributes()
-    })
-
-    /**
-     * Результирущий набор атрибутов для models.User:
-     * ['id', 'name', 'email', 'createdAt']
-     */
+      additionalAttributes: getUserAdditionalAttributes(),
+    }),
+    include: [
+      {
+        /**
+         * Все атрибуты модели `City`:
+         * ['id', 'name', 'regionId', 'createdAt', 'updatedAt', 'deletedAt']
+         */
+        model: models.City,
+        as: 'city',
+        attributes: attributeBuilder(models.City, req.query, {
+          prefixQueryKeys: 'city'
+        })
+      }
+    ]
   })
+
+  /**
+   * Результирущий набор атрибутов модели `User`:
+   * ['id', 'name', 'email', 'createdAt']
+   */
+
+  /**
+   * Результирущий набор атрибутов модели `City`:
+   * ['id', 'name']
+   */
 
   // ...
 }
 ```
 
-## Пример с использованием метода `req.attributeBuilder()`
+### Пример с использованием метода `req.attributeBuilder()`
+
+Перед тем как использовать данный подход, сделайте следующие доработки в вашем проекте:
+
+```typescript
+// Импортируйте промежуточное ПО
+import attributeBuilderMiddleware from '@risecorejs/attribute-builder/middleware'
+
+// Добавьте промежуточное ПО в ваше приложение Express
+app.use(attributeBuilderMiddleware)
+```
+
+Добавьте в ваш `tsconfig.json`, в поле `"types": []` следующий фрагмент:
+
+```json
+{
+  "types": [
+    "./node_modules/@risecorejs/attribute-builder/global"
+  ]
+}
+```
+
+**Использование:**
 
 ```typescript
 // controllers/users.ts
@@ -135,7 +180,7 @@ import models from '@riscorejs/core/models'
 
 import express from 'express'
 
-import getUserAdditionalAttributes from '~/database/additional-attributes/user.ts'
+import getUserAdditionalAttributes from '~/database/additional-attributes/user'
 
 /**
  * INDEX
@@ -149,21 +194,44 @@ export async function index(req: express.Request, res: express.Response) {
    * req.query = {
    *    fields: ['id', 'name', 'email'],
    *    additionalFields: ['subordinateCount'],
+   *    cityFields: ['id', 'name']
    *  }
    */
 
+  /**
+   * Все атрибуты модели `User`:
+   * ['id', 'name', 'email', 'password', 'createdAt', 'updatedAt', 'deletedAt']
+   */
   const users = await models.User.findAll({
     attributes: req.attributeBuilder(models.User, {
       excludeAttributes: ['password'],
       additionalAttributes: getUserAdditionalAttributes()
-    })
-
-    /**
-     * Результирущий набор атрибутов для models.User:
-     * ['id', 'name', 'email', ['subordinateCount', sequelize.literal('(SELECT COUNT(*) FROM "user" AS "Subordinates"...]]
-     */
+    }),
+    include: [
+      {
+        /**
+         * Все атрибуты модели `City`:
+         * ['id', 'name', 'regionId', 'createdAt', 'updatedAt', 'deletedAt']
+         */
+        model: models.City,
+        as: 'city',
+        attributes: req.attributeBuilder(models.City, {
+          prefixQueryKeys: 'city'
+        })
+      }
+    ]
   })
 
+  /**
+   * Результирущий набор атрибутов модели `User`:
+   * ['id', 'name', 'email', [sequelize.literal('(SELECT COUNT(*) FROM "user" AS "Subordinates"...], 'subordinateCount']
+   */
+
+  /**
+   * Результирущий набор атрибутов модели `City`:
+   * ['id', 'name']
+   */
+  
   // ...
 }
 ```

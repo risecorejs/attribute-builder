@@ -2,6 +2,10 @@
   "name": "@risecorejs/attribute-builder",
   "version": "1.1.1",
   "description": "",
+  "keywords": [
+    "sequelize",
+    "express"
+  ],
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsc --watch",
