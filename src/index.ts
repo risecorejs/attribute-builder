@@ -3,8 +3,8 @@ import * as sequelize from 'sequelize'
 import * as interfaces from '../interfaces'
 import * as exceptions from './exceptions'
 
-export default function <M extends sequelize.Model>(
-  model: typeof sequelize.Model & { new (): M },
+export default function (
+  model: any,
   query: interfaces.IQuery = {},
   options: interfaces.IOptions = {}
 ): Array<string | sequelize.ProjectionAlias> {
